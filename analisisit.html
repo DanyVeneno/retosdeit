@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel Interactivo: Retos de la Digitalización en PyMEs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Chosen Palette: Warm Neutrals with Muted Accents -->
+    <!-- Application Structure Plan: A dashboard-centric, single-page application. The structure is thematic rather than linear, allowing users to explore the core challenges (Financial, Infrastructure, Human Capital, Operational, Security) via interactive filters. An initial radar chart provides a holistic overview. A dedicated interactive section allows for direct comparison of challenges by company size (Micro, Small, Medium), replacing the static report table. This non-linear, exploratory structure is designed for better synthesis and usability, enabling users to dive into specific areas of interest without following the report's rigid chapter order. -->
+    <!-- Visualization & Content Choices: 
+        - Goal: Overview -> Viz: Radar Chart (Chart.js) -> Interaction: Hover tooltips -> Justification: Provides an immediate, multi-dimensional summary of the problem's severity across all categories.
+        - Goal: Inform (Specifics) -> Viz: Donut/Bar Charts (Chart.js) -> Interaction: None needed, data is direct -> Justification: Clearly communicates key quantitative data points like funding gaps or security incidents.
+        - Goal: Compare (By Size) -> Viz: Interactive Toggles + Dynamic Text Cards (HTML/CSS/JS) -> Interaction: Click to filter -> Justification: Transforms the static Table 2 into an engaging, user-driven comparison tool, enhancing readability and direct analysis.
+        - Goal: Organize -> Viz: Thematic navigation buttons (HTML/CSS/JS) -> Interaction: Click to switch views -> Justification: Creates a fluid, single-page experience, logically grouping dense information into digestible, user-selected sections.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #fdfbf7;
+        color: #403d39;
+      }
+      .chart-container {
+        position: relative;
+        width: 100%;
+        max-width: 550px;
+        margin-left: auto;
+        margin-right: auto;
+        height: 300px;
+        max-height: 400px;
+      }
+      @media (min-width: 768px) {
+        .chart-container {
+          height: 380px;
+        }
+      }
+      .nav-button {
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+      .nav-button.active {
+        background-color: #a49e99;
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      }
+      .content-section {
+        display: none;
+      }
+      .content-section.active {
+        display: block;
+      }
+      .size-button.active {
+        background-color: #4a5568;
+        color: #ffffff;
+      }
+      .fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body class="antialiased">
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+      <header class="text-center mb-10 md:mb-16">
+        <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-2">
+          Retos de la Integración Tecnológica
+        </h1>
+        <p class="text-lg md:text-xl text-gray-600">
+          Un panel interactivo sobre los desafíos para Emprendedores y PyMEs en
+          América Latina.
+        </p>
+      </header>
+
+      <main>
+        <section id="overview" class="mb-16">
+          <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">
+              El Panorama General de los Desafíos
+            </h2>
+            <p class="max-w-3xl mx-auto text-gray-600">
+              La digitalización es crucial, pero las empresas enfrentan
+              obstáculos en múltiples frentes. Este gráfico radar resume la
+              intensidad percibida de los principales desafíos, mostrando cómo
+              se interconectan para frenar la transformación tecnológica.
+            </p>
+          </div>
+          <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
+            <div class="chart-container">
+              <canvas id="overviewRadarChart"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="explorer"
+          class="bg-gray-100 rounded-2xl p-4 sm:p-6 md:p-8 mb-16"
+        >
+          <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">
+              Explora los Desafíos por Categoría
+            </h2>
+            <p class="max-w-3xl mx-auto text-gray-600">
+              Selecciona una categoría para profundizar en los datos, análisis y
+              consecuencias de cada obstáculo. Descubre las estadísticas clave y
+              los problemas específicos que impactan a las empresas en su camino
+              hacia la digitalización.
+            </p>
+          </div>
+
+          <div
+            id="navigation"
+            class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8"
+          ></div>
+
+          <div
+            id="challenge-content"
+            class="bg-white rounded-xl shadow-lg p-4 md:p-8 min-h-[400px]"
+          ></div>
+        </section>
+
+        <section id="size-comparison" class="mb-12">
+          <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">
+              Análisis por Tamaño de Empresa
+            </h2>
+            <p class="max-w-3xl mx-auto text-gray-600">
+              Los desafíos de la digitalización no son universales. El tamaño y
+              la madurez de una empresa determinan la naturaleza de sus
+              barreras. Selecciona un segmento para ver los problemas
+              específicos que enfrenta, desde un emprendedor hasta una mediana
+              empresa.
+            </p>
+          </div>
+
+          <div
+            class="flex justify-center gap-2 md:gap-4 mb-8"
+            id="size-navigation"
+          ></div>
+
+          <div
+            id="size-details"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          ></div>
+        </section>
+
+        <section
+          id="conclusion"
+          class="bg-white rounded-2xl shadow-xl p-8 mt-16 border-t-4 border-gray-700"
+        >
+          <h2 class="text-3xl font-bold text-gray-800 text-center mb-4">
+            Conclusión: Un Enfoque Holístico es la Única Salida
+          </h2>
+          <p class="text-lg text-gray-600 text-center max-w-4xl mx-auto">
+            La integración tecnológica no es un problema aislado de TI, sino un
+            desafío multifacético que abarca finanzas, cultura, estrategia y
+            operaciones. Superar estos obstáculos requiere más que solo
+            herramientas; exige una
+            <strong class="font-semibold text-gray-800"
+              >transformación integral de la mentalidad y los procesos</strong
+            >
+            de la organización. La digitalización no es un destino, sino un
+            viaje continuo de adaptación y aprendizaje.
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const reportData = {
+        overview: {
+          title: "Panorama General",
+          description:
+            "La digitalización es un imperativo, pero la brecha entre la intención y la ejecución es enorme. Solo el <strong>31%</strong> de las PyMEs que planean invertir en digitalización lo han logrado efectivamente. Esta sección muestra una visión general de los principales obstáculos.",
+          chartType: "radar",
+          chartData: {
+            labels: [
+              "Financieros",
+              "Infraestructura",
+              "Capital Humano",
+              "Operacionales",
+              "Ciberseguridad",
+            ],
+            datasets: [
+              {
+                label: "Intensidad del Desafío",
+                data: [85, 60, 90, 75, 70],
+                fill: true,
+                backgroundColor: "rgba(119, 136, 153, 0.2)",
+                borderColor: "rgb(119, 136, 153)",
+                pointBackgroundColor: "rgb(119, 136, 153)",
+                pointBorderColor: "#fff",
+                pointHoverBackgroundColor: "#fff",
+                pointHoverBorderColor: "rgb(119, 136, 153)",
+              },
+            ],
+          },
+        },
+        financiero: {
+          title: "Obstáculos Financieros",
+          description:
+            "La falta de capital es la barrera más citada. Las empresas perciben la tecnología como un gasto prohibitivo y luchan por medir el retorno de la inversión (ROI), lo que dificulta justificar el desembolso inicial.",
+          chartType: "doughnut",
+          chartLabel:
+            "85% de PyMEs en México carecen de acceso a financiamiento",
+          chartData: {
+            labels: ["Sin Acceso a Financiamiento", "Con Acceso"],
+            datasets: [
+              {
+                data: [85, 15],
+                backgroundColor: ["#B85042", "#E0D8B0"],
+                borderColor: "#FDFBF7",
+                borderWidth: 4,
+              },
+            ],
+          },
+          insights: [
+            "<strong>Círculo vicioso:</strong> Se necesita tecnología para acceder a soluciones fintech, pero se necesita financiamiento para adquirir esa tecnología.",
+            "<strong>Percepción vs. Realidad:</strong> El miedo a los altos costos a menudo eclipsa los beneficios potenciales en eficiencia y crecimiento.",
+            "<strong>Falta de estrategia:</strong> Sin un plan claro que vincule la tecnología a los objetivos de negocio, el ROI es casi imposible de demostrar.",
+          ],
+        },
+        infraestructura: {
+          title: "Barreras de Infraestructura",
+          description:
+            "Una conectividad deficiente y sistemas internos obsoletos actúan como un ancla, impidiendo que las empresas adopten herramientas modernas. La 'digitalización parcheada' sobre sistemas antiguos crea ineficiencia a largo plazo.",
+          chartType: "bar",
+          chartLabel:
+            "Solo el 44% de las PyMEs en México tienen acceso a Internet",
+          chartData: {
+            labels: ["Tienen Acceso a Internet", "No Tienen Acceso"],
+            datasets: [
+              {
+                label: "% de PyMEs",
+                data: [44, 56],
+                backgroundColor: ["#4A5568", "#CBD5E0"],
+                borderColor: "#FDFBF7",
+                borderWidth: 2,
+              },
+            ],
+          },
+          insights: [
+            "<strong>Cuello de botella:</strong> La conectividad limitada frena la integración en la economía digital global.",
+            "<strong>Deuda tecnológica:</strong> Implementar soluciones puntuales sobre sistemas obsoletos crea silos de información y problemas de compatibilidad futuros.",
+            "<strong>Costos ocultos:</strong> Actualizar la infraestructura existente puede ser tan o más costoso que el nuevo software.",
+          ],
+        },
+        capital_humano: {
+          title: "Retos de Capital Humano",
+          description:
+            "La tecnología es tan buena como las personas que la usan. La resistencia al cambio y la falta de habilidades digitales son los obstáculos más difíciles de superar. La transformación digital es, ante todo, una transformación cultural.",
+          chartType: "doughnut",
+          chartLabel:
+            "70% de las iniciativas de cambio fracasan por la resistencia de los empleados",
+          chartData: {
+            labels: ["Iniciativas de cambio que fracasan", "Exitosas"],
+            datasets: [
+              {
+                data: [70, 30],
+                backgroundColor: ["#D9534F", "#5CB85C"],
+                borderColor: "#FDFBF7",
+                borderWidth: 4,
+              },
+            ],
+          },
+          insights: [
+            "<strong>Cultura > Tecnología:</strong> Una cultura que no fomenta la agilidad y el aprendizaje continuo frenará cualquier iniciativa tecnológica.",
+            "<strong>Brecha de habilidades:</strong> La falta de personal capacitado limita no solo el uso de herramientas actuales, sino la adopción de tecnologías futuras como la IA.",
+            "<strong>Liderazgo es clave:</strong> Sin una visión digital clara y un liderazgo que la impulse, los esfuerzos de digitalización carecen de dirección.",
+          ],
+        },
+        operacional: {
+          title: "Dificultades Operacionales",
+          description:
+            "La complejidad de integrar múltiples sistemas (ERP, CRM) y la mala calidad de los datos generan ineficiencias. Muchas empresas recopilan datos, pero fallan en transformarlos en inteligencia para tomar mejores decisiones.",
+          chartType: "bar",
+          chartLabel: "Desafíos en la implementación de sistemas",
+          chartData: {
+            labels: [
+              "Integración de Sistemas",
+              "Calidad de Datos",
+              "Escalabilidad",
+            ],
+            datasets: [
+              {
+                label: "Nivel de Dificultad (Subjetivo)",
+                data: [80, 75, 65],
+                backgroundColor: ["#8A817C", "#A49E99", "#BCB8B1"],
+                borderColor: "#FDFBF7",
+                borderWidth: 2,
+              },
+            ],
+          },
+          insights: [
+            "<strong>Superposición de herramientas:</strong> Un exceso de software no integrado crea un ecosistema caótico y una visión fragmentada del negocio.",
+            "<strong>Datos como activo:</strong> Las empresas deben dejar de ver los datos como un subproducto y empezar a tratarlos como un activo estratégico.",
+            "<strong>La trampa del éxito:</strong> Una solución tecnológica que no es escalable puede convertirse en un obstáculo cuando el negocio crece.",
+          ],
+        },
+        ciberseguridad: {
+          title: "Amenaza de Ciberseguridad",
+          description:
+            "Subestimada y con poca inversión, la ciberseguridad es el talón de Aquiles de muchas PyMEs. Un ataque no solo significa pérdidas financieras, sino un daño potentially irreparable a la confianza del cliente.",
+          chartType: "doughnut",
+          chartLabel:
+            "70% de PyMEs en México han sido afectadas por robo de datos",
+          chartData: {
+            labels: ["Afectadas por Robo de Datos", "No Afectadas"],
+            datasets: [
+              {
+                data: [70, 30],
+                backgroundColor: ["#E74C3C", "#2ECC71"],
+                borderColor: "#FDFBF7",
+                borderWidth: 4,
+              },
+            ],
+          },
+          insights: [
+            "<strong>No es un costo, es confianza:</strong> La seguridad de los datos influye directamente en la lealtad del cliente y la reputación de la marca.",
+            "<strong>Blanco fácil:</strong> La falta de defensas robustas convierte a las PyMEs en un objetivo atractivo para los ciberdelincuentes.",
+            "<strong>Componente estratégico:</strong> La ciberseguridad debe ser parte integral de la estrategia de digitalización desde el primer día, no un añadido posterior.",
+          ],
+        },
+      };
+
+      const sizeData = {
+        micro: {
+          title: "Emprendedor / Microempresa",
+          challenges: [
+            {
+              icon: "💰",
+              title: "Financiamiento",
+              text: "Acceso casi nulo a créditos tradicionales. Alta dependencia de capital propio.",
+            },
+            {
+              icon: "🧠",
+              title: "Capital Humano",
+              text: "Falta de habilidades digitales básicas y necesidad de mentoría constante.",
+            },
+            {
+              icon: "🚀",
+              title: "Producto/Servicio",
+              text: "Riesgo de desarrollar tecnología sin validar la necesidad del mercado. Enfoque en MVP.",
+            },
+          ],
+        },
+        pequena: {
+          title: "Pequeña Empresa",
+          challenges: [
+            {
+              icon: "👥",
+              title: "Resistencia al Cambio",
+              text: "Los equipos se aferran a procesos conocidos, dificultando la adopción de nuevas herramientas.",
+            },
+            {
+              icon: "🧩",
+              title: "Sistemas Fragmentados",
+              text: "Uso de múltiples herramientas no integradas que crean ineficiencia y silos de información.",
+            },
+            {
+              icon: "📈",
+              title: "Gestión del Crecimiento",
+              text: "Dificultad para escalar operaciones y competir por talento con empresas más grandes.",
+            },
+          ],
+        },
+        mediana: {
+          title: "Mediana Empresa",
+          challenges: [
+            {
+              icon: "🔗",
+              title: "Integración Compleja",
+              text: "Necesidad de integrar sistemas nuevos con tecnología heredada (legacy), lo que es costoso y disruptivo.",
+            },
+            {
+              icon: "📊",
+              title: "Gobernanza de Datos",
+              text: 'Manejo de grandes volúmenes de datos, requiriendo herramientas de BI y una cultura "data-driven".',
+            },
+            {
+              icon: "🏛️",
+              title: "Cultura Organizacional",
+              text: "La resistencia al cambio se arraiga en los procesos internos, requiriendo una reestructuración profunda.",
+            },
+          ],
+        },
+      };
+
+      let currentChart = null;
+      let overviewChart = null;
+
+      function renderChart(canvasId, chartType, chartData, options = {}) {
+        const ctx = document.getElementById(canvasId).getContext("2d");
+        if (chartType === "overview") {
+          if (overviewChart) overviewChart.destroy();
+          overviewChart = new Chart(ctx, {
+            type: "radar",
+            data: reportData.overview.chartData,
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                r: {
+                  angleLines: { color: "rgba(0, 0, 0, 0.1)" },
+                  grid: { color: "rgba(0, 0, 0, 0.1)" },
+                  pointLabels: { font: { size: 14 } },
+                  suggestedMin: 0,
+                  suggestedMax: 100,
+                },
+              },
+              plugins: { legend: { display: false } },
+            },
+          });
+          return;
+        }
+        if (currentChart) {
+          currentChart.destroy();
+        }
+        currentChart = new Chart(ctx, {
+          type: chartType,
+          data: chartData,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  font: { size: 12 },
+                  boxWidth: 20,
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    let label = context.label || "";
+                    if (label) {
+                      label += ": ";
+                    }
+                    if (context.parsed !== null) {
+                      label += context.parsed + "%";
+                    }
+                    return label;
+                  },
+                },
+              },
+            },
+            ...options,
+          },
+        });
+      }
+
+      function updateChallengeView(categoryKey) {
+        const contentDiv = document.getElementById("challenge-content");
+        const data = reportData[categoryKey];
+
+        let insightsHTML = data.insights
+          .map(
+            (insight) =>
+              `<li class="flex items-start">
+                    <span class="text-green-600 mr-3 mt-1">✓</span>
+                    <span class="text-gray-600">${insight}</span>
+                </li>`
+          )
+          .join("");
+
+        contentDiv.innerHTML = `
+                <div class="fade-in grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-800 mb-2">${data.title}</h3>
+                        <p class="text-gray-600 mb-6">${data.description}</p>
+                        <ul class="space-y-3">
+                            ${insightsHTML}
+                        </ul>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="chart-container w-full max-w-sm">
+                            <canvas id="dynamicChart"></canvas>
+                        </div>
+                        <p class="text-center text-sm text-gray-500 mt-2 italic">${data.chartLabel}</p>
+                    </div>
+                </div>
+            `;
+
+        renderChart("dynamicChart", data.chartType, data.chartData);
+
+        document.querySelectorAll(".nav-button").forEach((btn) => {
+          btn.classList.remove("active");
+          if (btn.dataset.category === categoryKey) {
+            btn.classList.add("active");
+          }
+        });
+      }
+
+      function updateSizeView(sizeKey) {
+        const detailsDiv = document.getElementById("size-details");
+        const data = sizeData[sizeKey];
+
+        detailsDiv.innerHTML = data.challenges
+          .map(
+            (challenge) => `
+                <div class="fade-in bg-white rounded-lg shadow p-6 border-l-4 border-gray-300">
+                    <div class="flex items-center mb-3">
+                        <span class="text-3xl mr-4">${challenge.icon}</span>
+                        <h4 class="text-xl font-semibold text-gray-800">${challenge.title}</h4>
+                    </div>
+                    <p class="text-gray-600">${challenge.text}</p>
+                </div>
+            `
+          )
+          .join("");
+
+        document.querySelectorAll(".size-button").forEach((btn) => {
+          btn.classList.remove("active");
+          if (btn.dataset.size === sizeKey) {
+            btn.classList.add("active");
+          }
+        });
+      }
+
+      window.addEventListener("DOMContentLoaded", () => {
+        renderChart("overviewRadarChart", "overview");
+
+        const navigation = document.getElementById("navigation");
+        Object.keys(reportData)
+          .filter((k) => k !== "overview")
+          .forEach((key) => {
+            const button = document.createElement("button");
+            button.textContent = reportData[key].title;
+            button.dataset.category = key;
+            button.className =
+              "nav-button px-4 py-2 text-sm md:text-base font-medium text-gray-700 bg-white rounded-full shadow-sm hover:bg-gray-200";
+            button.addEventListener("click", () => updateChallengeView(key));
+            navigation.appendChild(button);
+          });
+
+        const sizeNavigation = document.getElementById("size-navigation");
+        Object.keys(sizeData).forEach((key) => {
+          const button = document.createElement("button");
+          button.textContent = sizeData[key].title;
+          button.dataset.size = key;
+          button.className =
+            "size-button px-4 py-2 text-sm md:text-base font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors";
+          button.addEventListener("click", () => updateSizeView(key));
+          sizeNavigation.appendChild(button);
+        });
+
+        updateChallengeView("financiero");
+        updateSizeView("micro");
+      });
+    </script>
+  </body>
+</html>
